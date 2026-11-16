@@ -1,6 +1,6 @@
 <div align="center">
 
-# 🛡️ IRON-MQTT
+#  IRON-MQTT
 
 **A self-contained IoT security range: attack it, detect it, measure it.**
 
@@ -23,21 +23,21 @@ a supervised model, a threshold rule and Suricata catch it on fully encrypted tr
 
 ---
 
-## ✨ Highlights
+##  Highlights
 
 | | |
 |---|---|
-| 🔐 **Real device identity** | One X.509 certificate per device (ECDSA P-256). Mosquitto requires it, uses its CN as the MQTT username, and a per-topic ACL stops a device from publishing as another. No plaintext port. |
-| 🚨 **Insider attack, measured** | A compromised device with a valid certificate and the genuine client software floods its own topic. At 20,000 msg/s the honest devices' p95 latency goes from **0.93 ms to 1,960 ms**. |
-| 🕵️ **Detection on encrypted traffic** | 19 TLS-visible features per source per 5 s window, a gradient-boosting model trained and tested on separate runs: **F1 1.000, 0 false alarms/hour**. |
-| 🦺 **Honest baselines** | Same windows for every detector: byte threshold F1 0.950 (4.2 false alarms/h); **Suricata with its default TLS setting raises 0 alerts**, and 0.864 with full inspection. |
-| ⚡ **Live pipeline** | Capture → features → score → MongoDB → change stream → WebSocket. Incidents reach the browser in **9.1 ms**; detection measured against ground truth (**5.4–6.8 s** after flood start). |
-| 🧪 **Robustness analysis** | Every feature is classified by who controls it. Robust models cut reliance on attacker-controlled features from 100 % to 0 % without losing detection, and the analysis shows where that stops working. |
-| ✅ **Tested against the live range** | `./iron test` runs **45 tests** against the running services: mTLS and ACLs, MongoDB validation and roles, API auth, WebSocket auth, console security, detector logic. |
+|  **Real device identity** | One X.509 certificate per device (ECDSA P-256). Mosquitto requires it, uses its CN as the MQTT username, and a per-topic ACL stops a device from publishing as another. No plaintext port. |
+|  **Insider attack, measured** | A compromised device with a valid certificate and the genuine client software floods its own topic. At 20,000 msg/s the honest devices' p95 latency goes from **0.93 ms to 1,960 ms**. |
+|  **Detection on encrypted traffic** | 19 TLS-visible features per source per 5 s window, a gradient-boosting model trained and tested on separate runs: **F1 1.000, 0 false alarms/hour**. |
+|  **Honest baselines** | Same windows for every detector: byte threshold F1 0.950 (4.2 false alarms/h); **Suricata with its default TLS setting raises 0 alerts**, and 0.864 with full inspection. |
+|  **Live pipeline** | Capture → features → score → MongoDB → change stream → WebSocket. Incidents reach the browser in **9.1 ms**; detection measured against ground truth (**5.4–6.8 s** after flood start). |
+|  **Robustness analysis** | Every feature is classified by who controls it. Robust models cut reliance on attacker-controlled features from 100 % to 0 % without losing detection, and the analysis shows where that stops working. |
+|  **Tested against the live range** | `./iron test` runs **45 tests** against the running services: mTLS and ACLs, MongoDB validation and roles, API auth, WebSocket auth, console security, detector logic. |
 
 ---
 
-## 🏗️ Architecture
+##  Architecture
 
 <img src="docs/images/architecture.png" alt="Architecture: devices and attacker on iot_net with the broker and capture sensor; MongoDB and detector on backend_net; ingest and API dual-homed; browser on localhost" width="100%">
 
@@ -56,7 +56,7 @@ Devices can reach the broker but **not** the database: MongoDB lives on a separa
 
 ---
 
-## 🚀 Quick start
+##  Quick start
 
 **Requirements:** Docker with Compose v2 (Linux, macOS, or Windows with WSL2), `bash`, `openssl` and `python3` (standard library only). Everything runs locally on CPU.
 
@@ -94,7 +94,7 @@ grep API_TOKEN .env      # the token the console asks for
 
 ---
 
-## 🔬 Reproduce the experiments
+##  Reproduce the experiments
 
 Every number in [`docs/RESULTS.md`](docs/RESULTS.md) comes from one of these commands.
 
@@ -122,7 +122,7 @@ DEVICES=10 ./iron gen-devices --seed 2 && ./iron up
 
 ---
 
-## 📊 Results at a glance
+##  Results at a glance
 
 <table>
 <tr>
@@ -141,7 +141,7 @@ DEVICES=10 ./iron gen-devices --seed 2 && ./iron up
 
 ---
 
-## 🗂️ Repository layout
+##  Repository layout
 
 ```text
 iron                  task runner: ./iron help lists every task
@@ -167,14 +167,14 @@ docs/                 RESULTS.md, FEATURES.md, results summary served by the API
 
 ---
 
-## 🔒 Security notes
+##  Security notes
 
 - Attacks only ever target this simulated fleet: the attacker refuses any broker host other than the range's own.
 - The API listens on `127.0.0.1` only and never mounts the Docker socket; it commands devices over MQTT.
 - Secrets (`.env`, `secrets/`, `certs/`) and captures are generated locally and git-ignored. TLS keylogs decrypt captured sessions, so they are treated as secrets. The optional pre-commit hook enforces all of this.
 - The console renders API data as text only, under `default-src 'none'; script-src 'self'`; the token lives in `sessionStorage`, and the WebSocket token never appears in a URL.
 
-## 🧭 Limitations and roadmap
+##  Limitations and roadmap
 
 - The insider flood is easy to catch; the model's advantage here is fewer false alarms. Next: low-rate and slow-ramp floods.
 - Data poisoning through detector self-training is designed (model lineage is stored in MongoDB) but not built yet.
@@ -182,6 +182,6 @@ docs/                 RESULTS.md, FEATURES.md, results summary served by the API
 - One shared API token without roles; the API is meant for local use.
 - MQTT only; a CoAP/DTLS device type is a natural extension.
 
-## 📄 License
+##  License
 
 [MIT](LICENSE)
