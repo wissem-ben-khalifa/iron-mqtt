@@ -1,0 +1,55 @@
+# Secrets & generated certs (never commit)
+*.key
+*.pem
+*.crt
+*.csr
+certs/
+secrets/
+*.p12
+*.pfx
+# TLS keylogs decrypt every captured session: secrets, keep only under captures/ or secrets/
+*.keylog
+*keylog*.txt
+*keylog*.log
+sslkeylog*
+.env
+.env.*
+!.env.example
+
+# Captured traffic (can be large; regenerate from the fleet)
+*.pcap
+*.pcapng
+captures/
+
+# Datasets (downloaded separately; large; license-restricted)
+data/
+datasets/
+*.csv.gz
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+env/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ipynb_checkpoints/
+
+# ML artifacts
+models/
+*.joblib
+*.pkl
+mlruns/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+*:Zone.Identifier
+.vscode/
+.idea/
+
+# Docker
+*.log
+

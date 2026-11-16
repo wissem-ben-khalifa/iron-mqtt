@@ -1,0 +1,15 @@
+# Keep secrets, data and captures out of the build context entirely.
+certs/
+secrets/
+captures/
+data/
+datasets/
+models/
+.env
+.env.*
+.git/
+.venv/
+**/__pycache__/
+*.pcap
+*.pcapng
+*.keylog

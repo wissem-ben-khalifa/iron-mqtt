@@ -1,0 +1,49 @@
+#!/usr/bin/env bash
+# IRON-MQTT pre-commit guard.
+# A real control (not just an instruction): refuses any commit that stages
+# secrets, keys/certs, packet captures, datasets, model files, Windows
+# Zone.Identifier junk, files over 5 MB, or content that looks like a token.
+# Enabled with:  git config core.hooksPath scripts/git-hooks
+set -uo pipefail
+
+max_bytes=$((5 * 1024 * 1024))
+blocked=0
+
+while IFS= read -r -d '' f; do
+  case "$f" in
+    .env.example|*/.env.example)
+      ;;  # templates without real values are allowed
+    .env|.env.*|*/.env|*/.env.*|\
+    *.key|*.pem|*.crt|*.csr|*.p12|*.pfx|\
+    *.keylog|*keylog*.txt|*keylog*.log|sslkeylog*|*/sslkeylog*|\
+    certs/*|*/certs/*|secrets/*|*/secrets/*|\
+    *.pcap|*.pcapng|captures/*|*/captures/*|\
+    data/*|datasets/*|models/*|*.joblib|*.pkl|\
+    *:Zone.Identifier)
+      echo "pre-commit: blocked file: $f"
+      blocked=1
+      continue
+      ;;
+  esac
+  size=$(git cat-file -s ":$f" 2>/dev/null || echo 0)
+  if [ "$size" -gt "$max_bytes" ]; then
+    echo "pre-commit: file larger than 5 MB: $f ($size bytes)"
+    blocked=1
+  fi
+done < <(git diff --cached --name-only --diff-filter=ACMR -z)
+
+# Crude scan of the staged lines for private keys, common token formats, and
+# NSS key-log lines (TLS session secrets), so a renamed keylog is caught too.
+if git diff --cached -U0 --diff-filter=ACMR -- . ':(exclude)scripts/git-hooks/pre-commit' \
+   | grep -E '^\+' \
+   | grep -qE -- '-----BEGIN ([A-Z]+ )?PRIVATE KEY-----|gh[pousr]_[A-Za-z0-9]{30,}|github_pat_[A-Za-z0-9_]{40,}|AKIA[0-9A-Z]{16}|(CLIENT_RANDOM|CLIENT_HANDSHAKE_TRAFFIC_SECRET|SERVER_HANDSHAKE_TRAFFIC_SECRET|CLIENT_TRAFFIC_SECRET_0|SERVER_TRAFFIC_SECRET_0|EXPORTER_SECRET) [0-9a-fA-F]{64} '; then
+  echo "pre-commit: staged changes look like they contain a private key, access token or TLS keylog."
+  blocked=1
+fi
+
+if [ "$blocked" -ne 0 ]; then
+  echo "Commit refused. Unstage the file(s) with: git restore --staged <file>"
+  echo "and fix .gitignore if needed. Do not bypass this hook with --no-verify."
+  exit 1
+fi
+exit 0

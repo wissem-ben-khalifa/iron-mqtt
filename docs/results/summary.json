@@ -1,0 +1,262 @@
+{
+  "generated_at": "2026-10-16T13:25:53+00:00",
+  "test_run": {
+    "name": "test-B",
+    "profile_version": "p1",
+    "attack_rate_per_s": 2000.0,
+    "attack_qos": 0,
+    "windows": 362,
+    "attack_windows": 19,
+    "window_s": 5,
+    "trained_on": "train-A"
+  },
+  "detectors": {
+    "title": "Same test-B run, identical windows",
+    "command": "./iron suricata",
+    "source": "captures/runs/suricata/compare-test-B*.json",
+    "rows": [
+      {
+        "id": "ml",
+        "name": "ML model m0001 (gradient boosting)",
+        "family": "ml",
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "tp": 19,
+        "fp": 0,
+        "fn": 0,
+        "tn": 343,
+        "fp_per_hour": 0.0
+      },
+      {
+        "id": "threshold",
+        "name": "Threshold rule, payload_up>13737",
+        "family": "threshold",
+        "precision": 0.9048,
+        "recall": 1.0,
+        "f1": 0.95,
+        "tp": 19,
+        "fp": 2,
+        "fn": 0,
+        "tn": 341,
+        "fp_per_hour": 4.2
+      },
+      {
+        "id": "suricata-default",
+        "name": "Suricata, default TLS handling (track-only)",
+        "family": "suricata",
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "tp": 0,
+        "fp": 0,
+        "fn": 19,
+        "tn": 343,
+        "fp_per_hour": 0.0
+      },
+      {
+        "id": "suricata-full",
+        "name": "Suricata, all rules, full inspection",
+        "family": "suricata",
+        "precision": 0.76,
+        "recall": 1.0,
+        "f1": 0.8636,
+        "tp": 19,
+        "fp": 6,
+        "fn": 0,
+        "tn": 337,
+        "fp_per_hour": 12.59
+      },
+      {
+        "id": "suricata-rate",
+        "name": "Suricata rate rule only, full inspection",
+        "family": "suricata",
+        "precision": 0.76,
+        "recall": 1.0,
+        "f1": 0.8636,
+        "tp": 19,
+        "fp": 6,
+        "fn": 0,
+        "tn": 337,
+        "fp_per_hour": 12.59
+      },
+      {
+        "id": "suricata-fingerprint",
+        "name": "Suricata JA4/JA3 rules only",
+        "family": "suricata",
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "tp": 0,
+        "fp": 0,
+        "fn": 19,
+        "tn": 343,
+        "fp_per_hour": 0.0
+      }
+    ]
+  },
+  "robust_models": {
+    "title": "Robust-feature models on test-B",
+    "command": "./iron robust",
+    "source": "captures/runs/robust/robust-test-B.json",
+    "rows": [
+      {
+        "id": "m0001",
+        "name": "m0001 (MVP)",
+        "granularity": "source",
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "tp": 19,
+        "fp": 0,
+        "fn": 0,
+        "tn": 343,
+        "fp_per_hour": 0.0,
+        "first_alert_s": 3.46,
+        "weight_share": {
+          "YES": 1.0,
+          "PARTIAL": 0.0,
+          "SYSTEM": 0.0
+        },
+        "top_features": {
+          "payload_up": 0.4122,
+          "iat_up_min": 0.362,
+          "payload_up_std": 0.0857,
+          "data_pkts_up": 0.0788,
+          "bytes_up": 0.0613
+        }
+      },
+      {
+        "id": "m0002",
+        "name": "m0002 (robust-all)",
+        "granularity": "source",
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "tp": 19,
+        "fp": 0,
+        "fn": 0,
+        "tn": 343,
+        "fp_per_hour": 0.0,
+        "first_alert_s": 3.46,
+        "weight_share": {
+          "YES": 0.7711,
+          "PARTIAL": 0.2289,
+          "SYSTEM": 0.0
+        },
+        "top_features": {
+          "data_pkts_up": 0.2759,
+          "share_up": 0.2289,
+          "iat_up_min": 0.2127,
+          "bytes_up": 0.2119,
+          "payload_up_std": 0.0379
+        }
+      },
+      {
+        "id": "m0003",
+        "name": "m0003 (robust-prefer)",
+        "granularity": "source",
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "tp": 19,
+        "fp": 0,
+        "fn": 0,
+        "tn": 343,
+        "fp_per_hour": 0.0,
+        "first_alert_s": 3.46,
+        "weight_share": {
+          "YES": 0.0,
+          "PARTIAL": 1.0,
+          "SYSTEM": 0.0
+        },
+        "top_features": {
+          "share_up": 1.0,
+          "fleet_latency_ms": 0.0,
+          "fleet_up_payload": 0.0,
+          "fanout_payload": 0.0,
+          "pkts_down": 0.0
+        }
+      },
+      {
+        "id": "m0004",
+        "name": "m0004 (system-only)",
+        "granularity": "source",
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "tp": 0,
+        "fp": 0,
+        "fn": 19,
+        "tn": 343,
+        "fp_per_hour": 0.0,
+        "first_alert_s": null,
+        "weight_share": {
+          "YES": 0.0,
+          "PARTIAL": 0.8601,
+          "SYSTEM": 0.1399
+        },
+        "top_features": {
+          "fleet_up_payload": 0.468,
+          "fanout_payload": 0.3922,
+          "active_sources": 0.1399,
+          "fleet_latency_ms": 0.0,
+          "ingest_rwnd_min": 0.0
+        }
+      },
+      {
+        "id": "m0005",
+        "name": "window: system-only",
+        "granularity": "window",
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "tp": 19,
+        "fp": 0,
+        "fn": 0,
+        "tn": 29,
+        "fp_per_hour": 0.0,
+        "first_alert_s": 3.46,
+        "weight_share": {
+          "YES": 0.0,
+          "PARTIAL": 1.0,
+          "SYSTEM": 0.0
+        },
+        "top_features": {
+          "fleet_up_payload": 0.5443,
+          "fanout_payload": 0.4557,
+          "ingest_rwnd_min": 0.0,
+          "ingest_zero_win": 0.0
+        }
+      },
+      {
+        "id": "m0006",
+        "name": "window: fleet-latency-only",
+        "granularity": "window",
+        "precision": 0.8947,
+        "recall": 0.8947,
+        "f1": 0.8947,
+        "tp": 17,
+        "fp": 2,
+        "fn": 2,
+        "tn": 27,
+        "fp_per_hour": 49.66,
+        "first_alert_s": 8.46,
+        "weight_share": {
+          "YES": 0.0,
+          "PARTIAL": 0.0,
+          "SYSTEM": 1.0
+        },
+        "top_features": {
+          "fleet_latency_ms": 1.0
+        }
+      }
+    ],
+    "weight_classes": {
+      "YES": "produced by the source device itself",
+      "PARTIAL": "shifted by the device but set elsewhere",
+      "SYSTEM": "produced by the broker, ingest or other devices"
+    }
+  },
+  "reference": "docs/RESULTS.md (Core A and Core sections)"
+}

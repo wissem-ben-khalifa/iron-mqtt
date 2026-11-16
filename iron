@@ -1,0 +1,99 @@
+#!/usr/bin/env bash
+# IRON-MQTT task runner (plain bash: `make` is not installed on the host and needs sudo).
+# Usage: ./iron <task> [args]      ./iron help
+set -euo pipefail
+cd "$(dirname "$0")"
+export HOST_UID="$(id -u)" HOST_GID="$(id -g)"
+export COMPOSE_FILE="compose.yaml:compose.devices.yaml"
+DEVICES="${DEVICES:-10}"
+PY312="python@sha256:a6e34c598f2467ed0e9a8d349809fcd8b5c603269512df273a0bb1784edc11b1"
+
+task_help()        { grep -E '^task_[a-z_]+\(\).*#' "$0" | grep -v '^task_help' | sed -E 's/^task_([a-z_]+)\(\).*# ?/  \1\t/' | tr _ -; }
+task_certs()       { DEVICES="$DEVICES" ./pki/make_certs.sh; }  # generate range PKI into certs/ (idempotent; DEVICES=30 adds more)
+task_build()       {  # build the shared app image and the netutils image
+  docker build -q -t iron-mqtt/app:dev --build-arg APP_UID="$HOST_UID" --build-arg APP_GID="$HOST_GID" .
+  docker build -q -t iron-mqtt/netutils -f docker/netutils.Dockerfile docker
+}
+task_gen_devices() { python3 scripts/gen_devices.py --count "$DEVICES" "$@"; }  # regenerate compose.devices.yaml (DEVICES=30 to scale)
+task_secrets()     {  # create .env (random passwords, API token) and the Mongo keyfile if missing; never prints them
+  ( umask 077; mkdir -p secrets
+    [ -f secrets/mongo-keyfile ] || { openssl rand -base64 756 > secrets/mongo-keyfile; echo "created secrets/mongo-keyfile"; }
+    if [ ! -f .env ]; then
+      for v in MONGO_ROOT_PASSWORD MONGO_INGEST_PASSWORD MONGO_DETECTOR_PASSWORD MONGO_API_PASSWORD MONGO_ANALYST_PASSWORD API_TOKEN; do
+        echo "$v=$(openssl rand -hex 24)"
+      done > .env
+      echo "created .env (mode 600)"
+    fi )
+}
+task_up()          { task_secrets; task_certs >/dev/null; mkdir -p captures/live captures/evidence captures/runs models; task_build >/dev/null; docker compose up -d "$@"; }  # build and start the range
+task_down()        { docker compose down "$@"; }  # stop the range (keeps volumes)
+task_ps()          { docker compose ps "$@"; }  # show containers
+task_logs()        { docker compose logs -f --tail=50 "$@"; }  # follow logs
+task_test_broker() { task_up broker; docker compose --profile test run --rm tests pytest -q -rA -s tests/test_broker_auth.py; }  # M0 check: mutual TLS + ACLs
+task_test()        { docker compose --profile test run --rm tests pytest -q -rA -s tests "$@"; }  # all tests against the running range
+task_ingest_check() { docker compose --profile test run --rm tests python -m scripts.ingest_check "$@"; }  # M3 check: wire vs MongoDB, latency (--seconds N)
+ml_run()           { mkdir -p models; docker compose --profile test run --rm --no-deps \
+  -e MONGO_URI="mongodb://detector:$(grep '^MONGO_DETECTOR_PASSWORD=' .env | cut -d= -f2)@mongo:27017/iron?authSource=iron&replicaSet=rs0" \
+  -e MODELS_DIR=/models -v "$PWD/models:/models" tests "$@"; }
+task_train()       { ml_run python -m ids.train "$@"; }  # M6: train the IDS on labelled run(s)
+task_evaluate()    { ml_run python -m ids.evaluate "$@"; }  # M6: P/R/F1 vs threshold on a held-out run
+task_transfer()    { ml_run -v "$PWD/data:/data:ro" -v "$PWD/ids:/app/ids:ro" python -m ids.transfer "$@"; }  # M6: MQTTset<->fleet transfer
+task_robust()      {  # core: robust-feature models vs m0001 on test-B (needs mongo up)
+  task_build >/dev/null; mkdir -p captures/runs/robust
+  docker compose --profile test run --rm --no-deps \
+    -e MONGO_URI="mongodb://detector:$(grep '^MONGO_DETECTOR_PASSWORD=' .env | cut -d= -f2)@mongo:27017/iron?authSource=iron&replicaSet=rs0" \
+    -e MONGO_ANALYST_URI="mongodb://analyst:$(grep '^MONGO_ANALYST_PASSWORD=' .env | cut -d= -f2)@mongo:27017/iron?authSource=iron&replicaSet=rs0" \
+    -e MODELS_DIR=/models -v "$PWD/models:/models" tests python -m ids.robust_model "$@"
+}
+task_experiment()  { python3 scripts/run_experiment.py "$@"; }  # generate a labelled run (warmup/attacks/cooldown + manifest)
+task_detector_check() { docker compose --profile test run --rm tests python -m scripts.detector_check "$@"; }  # M7: live detection latency + false alarms
+task_attack_check() { docker compose --profile test run --rm tests python -m scripts.attack_check "$@"; }  # M5: flood + measure honest-device impact
+task_fleet_check() { docker compose --profile test run --rm tests python -m scripts.fleet_check "$@"; }  # M1 check: rates, loss, latency (--seconds N)
+task_ping_matrix()  { scripts/ping_matrix.sh; }  # M8: reachability/isolation evidence (devices reach broker, not mongo)
+task_capture_check() { scripts/capture_check.sh; }  # M2 check: sensor sees all devices; handshake/rogue/keylog evidence pcaps
+task_spike()       {  # feature spike: fleet pcaps vs MQTTset legit slice vs MQTTset flood
+  mkdir -p captures/runs/spike
+  docker run --rm --user "$HOST_UID:$HOST_GID" -v "$PWD/data:/data:ro" -v "$PWD/captures:/captures" iron-mqtt/app:dev \
+    python -m ids.spike --fleet "/captures/live/*.pcap" --legit /data/mqttset/slices/legit_first300k.pcap \
+    --flood /data/mqttset/pcap/capture_flood.pcap --json /captures/runs/spike/spike.json "$@"
+}
+SURICATA="jasonish/suricata@sha256:bf4bea5b45d9c10265a3ee6628e2ec8930b9d1fb7caf9d1afb63af413b9cbb26"  # 8.0.7
+suri_run()         {  # suri_run <pcap in /captures> <out dir under captures/> <rules file> [tls encryption-handling, default full]
+  rm -rf "$2"; mkdir -p "$2"
+  docker run --rm --network none -v "$PWD/captures:/captures:ro" -v "$PWD/suricata:/rules:ro" -v "$PWD/$2:/out" "$SURICATA" \
+    -r "$1" -l /out -k none --runmode single -S "$3" \
+    --set app-layer.protocols.tls.ja3-fingerprints=yes --set app-layer.protocols.tls.ja4-fingerprints=yes \
+    --set stream.midstream=true --set app-layer.protocols.tls.encryption-handling="${4:-full}" >/dev/null 2>&1
+  docker run --rm --network none -v "$PWD/$2:/o" iron-mqtt/netutils chown -R "$HOST_UID:$HOST_GID" /o  # image writes as root
+}
+app_run()          { docker run --rm --network none --user "$HOST_UID:$HOST_GID" -v "$PWD/captures:/captures" \
+  -v "$PWD/models:/models:ro" -v "$PWD/suricata:/work/suricata" iron-mqtt/app:dev "$@"; }
+task_suricata()    {  # core A: fit Suricata rules on train-A, run on M2 (sanity) + test-B, compare with ML/threshold
+  task_build >/dev/null
+  local O=captures/runs/suricata
+  suri_run /captures/evidence/m2-handshakes-and-rogue.pcap $O/m2-fingerprints /dev/null
+  app_run python -m ids.suricata_compare fit-rules --train train-A --fleet-eve /$O/m2-fingerprints/eve.json --out /work/suricata/iron.rules
+  suri_run /captures/evidence/m2-handshakes-and-rogue.pcap $O/m2-rules /rules/iron.rules
+  # Suricata's default stops inspecting a TLS flow once it is encrypted (track-only); record that
+  # result too, then run with encryption-handling=full so packet-level rules keep evaluating.
+  suri_run /captures/runs/test-B/run.pcap $O/test-B-default /rules/iron.rules track-only
+  echo "default config (encryption-handling: track-only) -- alerts on test-B: $(grep -c '"event_type":"alert"' $O/test-B-default/eve.json)"
+  suri_run /captures/runs/test-B/run.pcap $O/test-B /rules/iron.rules full
+  echo "M2 sanity -- handshake-rule alerts on the M2 capture (rogue tooling should trip them):"
+  python3 -I -c "import json,collections; c=collections.Counter((e['alert']['signature_id'],e['src_ip']) for e in map(json.loads,open('$O/m2-rules/eve.json')) if e.get('event_type')=='alert'); [print('  sid',k[0],'from',k[1],':',v) for k,v in sorted(c.items())] or print('  none')"
+  app_run python -m ids.suricata_compare compare --train train-A --test test-B --eve /$O/test-B/eve.json \
+    --model /models/m0001.joblib --json /$O/compare-test-B.json
+}
+task_tshark()      { docker run --rm --user "$HOST_UID:$HOST_GID" -v "$PWD/captures:/captures:ro" iron-mqtt/netutils tshark "$@" 2>/dev/null; }  # run tshark on captures/ (paths as /captures/...)
+task_lock()        {  # regenerate requirements.txt from requirements.in inside python:3.12-slim
+  docker run --rm -v "$PWD/requirements.in:/r.in:ro" "$PY312" sh -c \
+    'pip install -q --root-user-action=ignore -r /r.in >/dev/null 2>&1 && pip freeze --exclude pip' \
+    | sed '1i # GENERATED by ./iron lock from requirements.in in python:3.12-slim. Do not edit by hand.' > requirements.txt
+}
+
+t="${1:-help}"; shift || true
+fn="task_${t//-/_}"
+declare -F "$fn" >/dev/null || { echo "unknown task: $t"; task_help; exit 1; }
+# `; exit` on the same line: bash reads scripts lazily, so this keeps edits to the file
+# from affecting a task that is already running.
+"$fn" "$@"; exit $?

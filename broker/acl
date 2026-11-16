@@ -1,0 +1,18 @@
+# Topic ACL. Usernames are certificate CNs (use_identity_as_username).
+# %u = the connecting client's username (its cert CN).
+
+# Every device: publish only its own telemetry/status, read only its own and fleet-wide commands.
+pattern write devices/%u/telemetry
+pattern write devices/%u/status
+pattern read devices/%u/cmd
+pattern read fleet/cmd
+
+# Ingest service: read all device telemetry and status.
+user ingest
+topic read devices/+/telemetry
+topic read devices/+/status
+
+# Control-plane API: send commands to the fleet and to individual devices.
+user api
+topic write fleet/cmd
+topic write devices/+/cmd

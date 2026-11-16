@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <meta name="theme-color" content="#e8ecf0">
+  <title>IRON-MQTT range console</title>
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="preload" href="fonts/IBMPlexSans-Regular.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="styles.css">
+  <script type="module" src="js/main.js"></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to the console</a>
+
+  <header class="statusbar" aria-label="Range status">
+    <h1 class="app-name">IRON-MQTT range</h1>
+    <dl class="status-items">
+      <div class="status-item">
+        <dt>Devices reporting</dt>
+        <dd id="st-devices">Loading…</dd>
+      </div>
+      <div class="status-item">
+        <dt>Detector model</dt>
+        <dd id="st-model" translate="no">Loading…</dd>
+      </div>
+      <div class="status-item">
+        <dt>Last incident</dt>
+        <dd id="st-incident">Loading…</dd>
+      </div>
+      <div class="status-item">
+        <dt>Live feed</dt>
+        <dd id="st-live">Not connected</dd>
+      </div>
+      <div class="status-item">
+        <dt>Times</dt>
+        <dd id="st-zone">Local</dd>
+      </div>
+    </dl>
+    <button type="button" id="lock" class="btn btn-quiet">Lock</button>
+  </header>
+
+  <div id="banner" class="banner" role="status" aria-live="polite" hidden></div>
+
+  <main id="main" class="layout" tabindex="-1">
+    <section class="panel panel-latency" aria-labelledby="h-latency">
+      <div class="panel-head">
+        <h2 id="h-latency">Honest-device latency</h2>
+        <p class="panel-note" id="latency-note">Device send to ingest receive, messages with a genuine device envelope.</p>
+      </div>
+      <div id="latency" class="latency"></div>
+    </section>
+
+    <section class="panel panel-incidents" aria-labelledby="h-incidents">
+      <div class="panel-head">
+        <h2 id="h-incidents">Incidents</h2>
+        <p class="panel-note">Live from the detector. Select a row for its timeline and evidence.</p>
+        <p id="incident-announcer" class="visually-hidden" aria-live="polite"></p>
+      </div>
+      <div id="incidents" class="incidents"></div>
+    </section>
+
+    <section class="panel panel-fleet" aria-labelledby="h-fleet">
+      <div class="panel-head">
+        <h2 id="h-fleet">Fleet</h2>
+        <p class="panel-note" id="fleet-note">Message rates per device.</p>
+      </div>
+      <div id="fleet" class="fleet"></div>
+    </section>
+
+    <section class="panel panel-results" aria-labelledby="h-results">
+      <div class="panel-head">
+        <h2 id="h-results">Detector comparison</h2>
+        <p class="panel-note" id="results-note">Committed results from the evaluation runs.</p>
+      </div>
+      <div id="results" class="results"></div>
+    </section>
+
+    <section class="panel panel-controls" aria-labelledby="h-controls">
+      <div class="panel-head">
+        <h2 id="h-controls">Lab controls</h2>
+        <p class="panel-note">Acts only on this project’s simulated range.</p>
+      </div>
+      <div id="controls" class="controls"></div>
+    </section>
+  </main>
+
+  <dialog id="incident-detail" class="drawer" aria-labelledby="detail-title"></dialog>
+  <dialog id="confirm-flood" class="modal" aria-labelledby="confirm-title"></dialog>
+
+  <div id="lockscreen" class="lockscreen" hidden>
+    <form id="unlock-form" class="unlock" autocomplete="off">
+      <h2 id="unlock-title">Unlock the console</h2>
+      <p>Enter the API token. It is <code>API_TOKEN</code> in the project’s <code>.env</code> file.
+        It stays in this browser tab only and is cleared by Lock.</p>
+      <label for="token">API token</label>
+      <input id="token" name="token" type="password" required spellcheck="false" autocapitalize="off">
+      <p id="unlock-error" class="form-error" role="alert"></p>
+      <button type="submit" class="btn btn-primary">Unlock</button>
+    </form>
+  </div>
+</body>
+</html>

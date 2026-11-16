@@ -1,0 +1,20 @@
+# Top-level dependencies for every Python service (one shared image).
+# requirements.txt is the full lock generated from this file inside python:3.12-slim:
+#   ./iron lock
+paho-mqtt==2.1.0
+pymongo==4.19.0
+fastapi==0.143.1
+uvicorn==0.54.0
+websockets==17.2
+httpx==0.28.1
+pyyaml==6.0.3
+dpkt==1.9.8
+numpy==2.5.4
+scipy==1.18.1
+pandas==3.0.6
+scikit-learn==1.8.0
+joblib==1.6.0
+# ART 1.20.1 imports `packaging` without declaring it (verified 2026-10-15).
+adversarial-robustness-toolbox==1.20.1
+packaging==26.3
+pytest==9.1.1
